@@ -109,7 +109,7 @@ def get_settings() -> Settings:
         chunk_size=int(os.getenv("CHUNK_SIZE", "700")),
         chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "100")),
         retrieval_top_k=int(os.getenv("RETRIEVAL_TOP_K", "6")),
-        min_retrieval_score=float(os.getenv("MIN_RETRIEVAL_SCORE", "0.12")),
+        min_retrieval_score=float(os.getenv("MIN_RETRIEVAL_SCORE", "0.45")),
         max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "25")),
         cors_origins=origins,
     )
