@@ -1,0 +1,18 @@
+{
+  "course_name": "AI 应用开发",
+  "cases": [
+    { "question": "FastAPI 是构建在哪两个库之上的？", "expected_terms": ["Starlette", "Pydantic"] },
+    { "question": "FastAPI 在性能基准测试里的表现如何？", "expected_terms": ["TechEmpower", "NodeJS"] },
+    { "question": "FastAPI 用什么命令启动开发服务器？", "expected_terms": ["fastapi dev", "reload"] },
+    { "question": "FastAPI 提供哪两个交互式 API 文档界面？", "expected_terms": ["Swagger UI", "ReDoc"] },
+    { "question": "RAG 的核心价值是什么？", "expected_terms": ["幻觉", "知识库"] },
+    { "question": "切片长度和重叠范围会怎样影响召回质量？", "expected_terms": ["切片", "上下文"] },
+    { "question": "Qdrant 和 PostgreSQL 在 RAG 系统里分别负责什么？", "expected_terms": ["Qdrant", "PostgreSQL"] },
+    { "question": "检索分数低于阈值时 LangGraph 工作流会怎么处理？", "expected_terms": ["拒绝", "阈值"] },
+    { "question": "评测通常关注哪些检索指标？", "expected_terms": ["Hit Rate", "MRR"] }
+  ],
+  "refusal_cases": [
+    "请推导贝尔不等式并给出实验验证方案",
+    "深圳明天适合去海边吗"
+  ]
+}
