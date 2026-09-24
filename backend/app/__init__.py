@@ -1,0 +1,2 @@
+"""CoursePilot backend package."""
+

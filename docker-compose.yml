@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: coursepilot
+      POSTGRES_USER: coursepilot
+      POSTGRES_PASSWORD: coursepilot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coursepilot -d coursepilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_ENV: production
+      SEED_DEMO: ${SEED_DEMO:-true}
+      DATABASE_URL: postgresql+psycopg://coursepilot:coursepilot@postgres:5432/coursepilot
+      VECTOR_BACKEND: qdrant
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-coursepilot_chunks}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hash}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://api.openai.com/v1}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-64}
+      EMBEDDING_SEND_DIMENSIONS: ${EMBEDDING_SEND_DIMENSIONS:-false}
+      LLM_PROVIDER: ${LLM_PROVIDER:-demo}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      CHUNK_SIZE: ${CHUNK_SIZE:-700}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-100}
+      RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K:-6}
+      MIN_RETRIEVAL_SCORE: ${MIN_RETRIEVAL_SCORE:-0.12}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      DATA_DIR: /app/data
+      FRONTEND_DIR: /app/frontend
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  app_data:

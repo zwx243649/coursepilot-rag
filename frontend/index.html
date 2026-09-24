@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f3f5f2" />
+    <title>CoursePilot</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="CoursePilot 首页">
+          <span class="brand-mark">CP</span>
+          <span class="brand-copy">
+            <strong>CoursePilot</strong>
+            <small>课程资料智能助手</small>
+          </span>
+        </a>
+        <div class="top-actions">
+          <button class="status-chip" id="healthButton" type="button">
+            <span class="status-dot"></span>
+            <span id="healthLabel">连接中</span>
+          </button>
+          <button class="button primary" id="uploadButton" type="button">
+            <span data-icon="upload"></span>
+            添加资料
+          </button>
+        </div>
+      </header>
+
+      <div class="workspace-grid">
+        <aside class="sidebar">
+          <div class="side-section">
+            <div class="section-label row">
+              <span>课程</span>
+              <button class="icon-button" id="addCourseButton" type="button" aria-label="新建课程" title="新建课程">
+                <span data-icon="plus"></span>
+              </button>
+            </div>
+            <nav class="course-list" id="courseList" aria-label="课程列表"></nav>
+          </div>
+
+          <div class="side-section documents-section">
+            <div class="section-label row">
+              <span>资料</span>
+              <span class="count-badge" id="documentCount">0</span>
+            </div>
+            <div class="document-list" id="documentList"></div>
+          </div>
+
+          <div class="side-footer" id="sideFooter">
+            <span data-icon="database"></span>
+            <span>本地知识库</span>
+          </div>
+        </aside>
+
+        <main class="main-panel">
+          <div class="main-header">
+            <div class="course-heading">
+              <span class="eyebrow">当前课程</span>
+              <h1 id="courseTitle">CoursePilot</h1>
+              <p id="courseDescription">从课程资料中检索、引用并回答问题</p>
+            </div>
+            <div class="course-stats">
+              <div>
+                <strong id="headerDocumentCount">0</strong>
+                <span>资料</span>
+              </div>
+              <div>
+                <strong id="headerChunkCount">0</strong>
+                <span>切片</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist">
+            <button class="tab active" type="button" role="tab" data-view="chat">
+              <span data-icon="message"></span>
+              问答
+            </button>
+            <button class="tab" type="button" role="tab" data-view="library">
+              <span data-icon="file"></span>
+              资料库
+            </button>
+            <button class="tab" type="button" role="tab" data-view="evaluation">
+              <span data-icon="chart"></span>
+              检索评测
+            </button>
+          </div>
+
+          <section class="view chat-view active" id="chatView">
+            <div class="messages" id="messages"></div>
+            <form class="composer" id="chatForm">
+              <textarea
+                id="questionInput"
+                rows="2"
+                maxlength="4000"
+                placeholder="输入关于这门课程的问题"
+                aria-label="输入问题"
+              ></textarea>
+              <button class="button primary send-button" id="sendButton" type="submit">
+                <span data-icon="send"></span>
+                发送
+              </button>
+            </form>
+          </section>
+
+          <section class="view library-view" id="libraryView" hidden>
+            <div class="view-toolbar">
+              <div>
+                <h2>课程资料</h2>
+                <p id="librarySummary">暂无资料</p>
+              </div>
+              <button class="button secondary" id="libraryUploadButton" type="button">
+                <span data-icon="upload"></span>
+                添加资料
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>文件</th>
+                    <th>状态</th>
+                    <th>切片</th>
+                    <th>更新时间</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="libraryBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="view evaluation-view" id="evaluationView" hidden>
+            <div class="evaluation-layout">
+              <form class="evaluation-form" id="evaluationForm">
+                <div class="form-heading">
+                  <span class="eyebrow">离线测试集</span>
+                  <h2>检索质量</h2>
+                </div>
+                <label for="evaluationCases">测试用例</label>
+                <textarea
+                  id="evaluationCases"
+                  rows="10"
+                  placeholder="问题|期望关键词1,期望关键词2"
+                >什么是检索增强生成？|检索,生成
+LangGraph 适合什么场景？|状态,工作流
+为什么要使用向量数据库？|向量,相似度</textarea>
+                <div class="field-row">
+                  <label for="topKInput">Top K</label>
+                  <input id="topKInput" type="number" min="1" max="20" value="5" />
+                </div>
+                <button class="button primary" id="runEvaluationButton" type="submit">
+                  <span data-icon="play"></span>
+                  运行评测
+                </button>
+              </form>
+              <div class="evaluation-results" id="evaluationResults">
+                <div class="empty-compact">
+                  <span data-icon="chart"></span>
+                  <p>运行测试集后显示指标</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <aside class="evidence-panel">
+          <div class="evidence-header">
+            <div>
+              <span class="eyebrow">检索轨迹</span>
+              <h2>回答依据</h2>
+            </div>
+            <span class="live-badge">Live</span>
+          </div>
+          <div id="evidenceContent">
+            <div class="empty-compact">
+              <span data-icon="activity"></span>
+              <p>提问后显示检索节点与引用来源</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <dialog class="dialog" id="uploadDialog">
+      <form method="dialog" class="dialog-card" id="uploadForm">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">知识库</span>
+            <h2>添加课程资料</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="uploadDialog" aria-label="关闭" title="关闭">
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <div class="source-tabs" role="tablist">
+          <button class="source-tab active" type="button" data-source-tab="file">
+            <span data-icon="upload"></span>
+            本地文件
+          </button>
+          <button class="source-tab" type="button" data-source-tab="web">
+            <span data-icon="search"></span>
+            官方文档
+          </button>
+        </div>
+        <div class="source-panel active" id="fileSourcePanel">
+          <label class="drop-zone" for="fileInput" id="dropZone">
+            <span class="drop-icon" data-icon="upload"></span>
+            <strong>选择 PDF、Markdown 或 TXT</strong>
+            <small>单个文件最大 25 MB</small>
+            <input id="fileInput" type="file" accept=".pdf,.md,.markdown,.txt" multiple />
+          </label>
+          <div class="selected-files" id="selectedFiles"></div>
+        </div>
+        <div class="source-panel" id="webSourcePanel" hidden>
+          <label for="docsUrlInput">官方文档首页</label>
+          <input
+            id="docsUrlInput"
+            type="url"
+            placeholder="https://fastapi.tiangolo.com/"
+            autocomplete="off"
+          />
+          <div class="preset-grid">
+            <button class="preset-button" type="button" data-doc-url="https://fastapi.tiangolo.com/">
+              FastAPI
+            </button>
+            <button class="preset-button" type="button" data-doc-url="https://qdrant.tech/documentation/">
+              Qdrant
+            </button>
+            <button class="preset-button" type="button" data-doc-url="https://langchain-ai.github.io/langgraph/">
+              LangGraph
+            </button>
+            <button class="preset-button" type="button" data-doc-url="https://www.postgresql.org/docs/current/">
+              PostgreSQL
+            </button>
+          </div>
+          <div class="field-row web-options">
+            <label for="maxPagesInput">最多页面数</label>
+            <input id="maxPagesInput" type="number" min="1" max="30" value="12" />
+          </div>
+          <label class="checkbox-row">
+            <input id="samePathInput" type="checkbox" checked />
+            <span>限定在文档路径内</span>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="button ghost" type="button" data-close-dialog="uploadDialog">取消</button>
+          <button class="button primary" id="confirmUploadButton" type="submit">
+            <span data-icon="upload"></span>
+            开始上传
+          </button>
+          <button class="button primary" id="confirmWebImportButton" type="submit" hidden>
+            <span data-icon="search"></span>
+            开始导入
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="dialog" id="courseDialog">
+      <form method="dialog" class="dialog-card" id="courseForm">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">工作区</span>
+            <h2>新建课程</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="courseDialog" aria-label="关闭" title="关闭">
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <label for="courseNameInput">课程名称</label>
+        <input id="courseNameInput" type="text" maxlength="160" required autocomplete="off" />
+        <label for="courseDescriptionInput">课程说明</label>
+        <textarea id="courseDescriptionInput" rows="3" maxlength="1000"></textarea>
+        <fieldset class="color-field">
+          <legend>标识颜色</legend>
+          <div class="color-swatches" id="colorSwatches">
+            <button class="swatch selected" type="button" data-color="#0F766E" aria-label="青绿色"></button>
+            <button class="swatch" type="button" data-color="#2563EB" aria-label="蓝色"></button>
+            <button class="swatch" type="button" data-color="#B45309" aria-label="棕色"></button>
+            <button class="swatch" type="button" data-color="#7C3AED" aria-label="紫色"></button>
+            <button class="swatch" type="button" data-color="#BE123C" aria-label="红色"></button>
+          </div>
+        </fieldset>
+        <div class="dialog-actions">
+          <button class="button ghost" type="button" data-close-dialog="courseDialog">取消</button>
+          <button class="button primary" type="submit">
+            <span data-icon="plus"></span>
+            创建课程
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="dialog preview-dialog" id="previewDialog">
+      <div class="dialog-card">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">资料内容</span>
+            <h2 id="previewTitle">文档预览</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="previewDialog" aria-label="关闭" title="关闭">
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <div class="chunk-preview" id="chunkPreview"></div>
+      </div>
+    </dialog>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
