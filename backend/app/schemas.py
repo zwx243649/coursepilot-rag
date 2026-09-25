@@ -109,9 +109,16 @@ class ConversationMessage(BaseModel):
     created_at: datetime
 
 
+class RelevantChunk(BaseModel):
+    document: str = Field(min_length=1)
+    chunk_index: int = Field(ge=0)
+
+
 class EvaluationCase(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     expected_terms: list[str] = Field(default_factory=list)
+    relevant: list[RelevantChunk] = Field(default_factory=list)
+    answerable: bool = True
 
 
 class EvaluationRequest(BaseModel):
@@ -122,17 +129,27 @@ class EvaluationRequest(BaseModel):
 
 class EvaluationCaseResult(BaseModel):
     question: str
+    answerable: bool
     hit: bool
     reciprocal_rank: float
+    recall_at_k: float
+    precision_at_k: float
+    ndcg_at_k: float
     term_coverage: float
     top_score: float
     latency_ms: int
     top_document: str | None
+    decision: str
+    passed: bool
 
 
 class EvaluationResponse(BaseModel):
     hit_rate: float
     mrr: float
+    recall_at_k: float
+    precision_at_k: float
+    ndcg_at_k: float
     average_term_coverage: float
     average_latency_ms: float
+    decision_accuracy: float
     cases: list[EvaluationCaseResult]

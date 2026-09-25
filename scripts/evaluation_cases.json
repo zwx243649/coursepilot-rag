@@ -1,18 +1,175 @@
 {
-  "course_name": "AI 应用开发",
-  "cases": [
-    { "question": "FastAPI 是构建在哪两个库之上的？", "expected_terms": ["Starlette", "Pydantic"] },
-    { "question": "FastAPI 在性能基准测试里的表现如何？", "expected_terms": ["TechEmpower", "NodeJS"] },
-    { "question": "FastAPI 用什么命令启动开发服务器？", "expected_terms": ["fastapi dev", "reload"] },
-    { "question": "FastAPI 提供哪两个交互式 API 文档界面？", "expected_terms": ["Swagger UI", "ReDoc"] },
-    { "question": "RAG 的核心价值是什么？", "expected_terms": ["幻觉", "知识库"] },
-    { "question": "切片长度和重叠范围会怎样影响召回质量？", "expected_terms": ["切片", "上下文"] },
-    { "question": "Qdrant 和 PostgreSQL 在 RAG 系统里分别负责什么？", "expected_terms": ["Qdrant", "PostgreSQL"] },
-    { "question": "检索分数低于阈值时 LangGraph 工作流会怎么处理？", "expected_terms": ["拒绝", "阈值"] },
-    { "question": "评测通常关注哪些检索指标？", "expected_terms": ["Hit Rate", "MRR"] }
-  ],
-  "refusal_cases": [
-    "请推导贝尔不等式并给出实验验证方案",
-    "深圳明天适合去海边吗"
+  "suites": [
+    {
+      "name": "AI 应用开发",
+      "course_name": "AI 应用开发",
+      "cases": [
+        {
+          "question": "FastAPI 是构建在哪两个库之上的？",
+          "expected_terms": ["Starlette", "Pydantic"],
+          "relevant": [
+            { "document": "FastAPI ¶.md", "chunk_index": 0 },
+            { "document": "FastAPI ¶.md", "chunk_index": 1 }
+          ]
+        },
+        {
+          "question": "FastAPI 在性能基准测试里的表现如何？",
+          "expected_terms": ["TechEmpower", "NodeJS"],
+          "relevant": [
+            { "document": "FastAPI ¶.md", "chunk_index": 1 },
+            { "document": "FastAPI ¶.md", "chunk_index": 22 }
+          ]
+        },
+        {
+          "question": "FastAPI 用什么命令启动开发服务器？",
+          "expected_terms": ["fastapi dev", "reload"],
+          "relevant": [
+            { "document": "FastAPI ¶.md", "chunk_index": 10 },
+            { "document": "FastAPI ¶.md", "chunk_index": 13 }
+          ]
+        },
+        {
+          "question": "FastAPI 提供哪两个交互式 API 文档界面？",
+          "expected_terms": ["Swagger UI", "ReDoc"],
+          "relevant": [{ "document": "FastAPI ¶.md", "chunk_index": 16 }]
+        },
+        {
+          "question": "RAG 的核心价值是什么？",
+          "expected_terms": ["幻觉", "知识库"],
+          "relevant": [{ "document": "RAG 与 Agent 课程讲义.md", "chunk_index": 0 }]
+        },
+        {
+          "question": "切片长度和重叠范围会怎样影响召回质量？",
+          "expected_terms": ["切片", "上下文"],
+          "relevant": [{ "document": "RAG 与 Agent 课程讲义.md", "chunk_index": 0 }]
+        },
+        {
+          "question": "Qdrant 和 PostgreSQL 在 RAG 系统里分别负责什么？",
+          "expected_terms": ["Qdrant", "PostgreSQL"],
+          "relevant": [{ "document": "RAG 与 Agent 课程讲义.md", "chunk_index": 0 }]
+        },
+        {
+          "question": "检索分数低于阈值时 LangGraph 工作流会怎么处理？",
+          "expected_terms": ["拒绝", "阈值"],
+          "relevant": [{ "document": "RAG 与 Agent 课程讲义.md", "chunk_index": 1 }]
+        },
+        {
+          "question": "评测通常关注哪些检索指标？",
+          "expected_terms": ["Hit Rate", "MRR"],
+          "relevant": [{ "document": "RAG 与 Agent 课程讲义.md", "chunk_index": 1 }]
+        },
+        {
+          "question": "深圳明天适合去海边吗",
+          "expected_terms": [],
+          "answerable": false
+        },
+        {
+          "question": "红烧肉怎么做才好吃？",
+          "expected_terms": [],
+          "answerable": false
+        }
+      ]
+    },
+    {
+      "name": "机器学习",
+      "course_name": "机器学习",
+      "cases": [
+        {
+          "question": "线性回归的目标是什么？",
+          "expected_terms": ["线性回归", "误差最小化"],
+          "relevant": [{ "document": "02机器学习-回归.pdf", "chunk_index": 4 }]
+        },
+        {
+          "question": "梯度下降和最小二乘法有什么区别？",
+          "expected_terms": ["梯度下降", "最小二乘"],
+          "relevant": [{ "document": "02机器学习-回归.pdf", "chunk_index": 17 }]
+        },
+        {
+          "question": "为什么要对数据做归一化或者标准化？",
+          "expected_terms": ["归一化", "标准化"],
+          "relevant": [{ "document": "02机器学习-回归.pdf", "chunk_index": 18 }]
+        },
+        {
+          "question": "L1 和 L2 正则化分别有什么作用？",
+          "expected_terms": ["L1正则化", "L2正则化"],
+          "relevant": [
+            { "document": "02机器学习-回归.pdf", "chunk_index": 26 },
+            { "document": "02机器学习-回归.pdf", "chunk_index": 27 }
+          ]
+        },
+        {
+          "question": "回归模型常用哪些评价指标？",
+          "expected_terms": ["均方误差", "R方"],
+          "relevant": [
+            { "document": "02机器学习-回归.pdf", "chunk_index": 29 },
+            { "document": "02机器学习-回归.pdf", "chunk_index": 30 }
+          ]
+        },
+        {
+          "question": "逻辑回归的假设函数是什么？",
+          "expected_terms": ["Sigmoid", "逻辑回归"],
+          "relevant": [{ "document": "03机器学习-逻辑回归.pdf", "chunk_index": 7 }]
+        },
+        {
+          "question": "逻辑回归的损失函数是怎么定义的？",
+          "expected_terms": ["损失函数"],
+          "relevant": [{ "document": "03机器学习-逻辑回归.pdf", "chunk_index": 12 }]
+        },
+        {
+          "question": "朴素贝叶斯的核心假设是什么？",
+          "expected_terms": ["条件独立"],
+          "relevant": [
+            { "document": "04机器学习-朴素贝叶斯.pdf", "chunk_index": 9 },
+            { "document": "04机器学习-朴素贝叶斯.pdf", "chunk_index": 14 }
+          ]
+        },
+        {
+          "question": "拉普拉斯平滑是为了解决什么问题？",
+          "expected_terms": ["拉普拉斯", "零概率"],
+          "relevant": [
+            { "document": "04机器学习-朴素贝叶斯.pdf", "chunk_index": 22 },
+            { "document": "04机器学习-朴素贝叶斯.pdf", "chunk_index": 23 }
+          ]
+        },
+        {
+          "question": "训练集、验证集和测试集分别有什么用？",
+          "expected_terms": ["训练集", "验证集"],
+          "relevant": [{ "document": "05机器学习-机器学习实践.pdf", "chunk_index": 3 }]
+        },
+        {
+          "question": "交叉验证是怎么做的？",
+          "expected_terms": ["交叉验证"],
+          "relevant": [{ "document": "05机器学习-机器学习实践.pdf", "chunk_index": 4 }]
+        },
+        {
+          "question": "分类问题常用哪些评价指标？",
+          "expected_terms": ["精度", "召回率"],
+          "relevant": [
+            { "document": "05机器学习-机器学习实践.pdf", "chunk_index": 11 },
+            { "document": "05机器学习-机器学习实践.pdf", "chunk_index": 13 }
+          ]
+        },
+        {
+          "question": "SMOTE 是用来做什么的？",
+          "expected_terms": ["SMOTE"],
+          "relevant": [{ "document": "05机器学习-机器学习实践.pdf", "chunk_index": 6 }]
+        },
+        {
+          "question": "深圳明天适合去海边吗",
+          "expected_terms": [],
+          "answerable": false
+        },
+        {
+          "question": "请用 C++ 写一个红黑树删除节点的实现",
+          "expected_terms": [],
+          "answerable": false
+        },
+        {
+          "question": "红楼梦里贾宝玉的结局是什么？",
+          "expected_terms": [],
+          "answerable": false
+        }
+      ]
+    }
   ]
 }

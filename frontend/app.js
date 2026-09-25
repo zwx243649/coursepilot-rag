@@ -888,16 +888,32 @@ function renderEvaluation() {
   container.innerHTML = `
     <div class="metric-grid">
       <div class="metric">
-        <strong>${formatPercent(result.hit_rate)}</strong>
-        <span>Hit Rate</span>
+        <strong>${formatPercent(result.recall_at_k)}</strong>
+        <span>Recall@k 召回率</span>
+      </div>
+      <div class="metric">
+        <strong>${formatPercent(result.precision_at_k)}</strong>
+        <span>Precision@k 准确率</span>
+      </div>
+      <div class="metric">
+        <strong>${Number(result.ndcg_at_k || 0).toFixed(2)}</strong>
+        <span>NDCG@k 排序质量</span>
       </div>
       <div class="metric">
         <strong>${Number(result.mrr || 0).toFixed(2)}</strong>
         <span>MRR</span>
       </div>
       <div class="metric">
+        <strong>${formatPercent(result.hit_rate)}</strong>
+        <span>Hit Rate</span>
+      </div>
+      <div class="metric">
         <strong>${formatPercent(result.average_term_coverage)}</strong>
         <span>关键词覆盖</span>
+      </div>
+      <div class="metric">
+        <strong>${formatPercent(result.decision_accuracy)}</strong>
+        <span>判定准确率</span>
       </div>
       <div class="metric">
         <strong>${Math.round(result.average_latency_ms)} ms</strong>
@@ -912,13 +928,25 @@ function renderEvaluation() {
               <div>
                 <div class="evaluation-question">${escapeHtml(item.question)}</div>
                 <div class="evaluation-meta">
-                  ${item.top_document ? escapeHtml(item.top_document) : "未召回文档"}
+                  ${item.answerable ? "可回答" : "应拒答"}
+                  · ${escapeHtml(item.decision)}
+                  · Recall ${Number(item.recall_at_k || 0).toFixed(2)}
+                  · NDCG ${Number(item.ndcg_at_k || 0).toFixed(2)}
+                  · ${item.top_document ? escapeHtml(item.top_document) : "未召回文档"}
                   · Top score ${Number(item.top_score || 0).toFixed(2)}
                   · ${item.latency_ms} ms
                 </div>
               </div>
-              <span class="result-pill ${item.hit ? "hit" : "miss"}">
-                ${item.hit ? "命中" : "未命中"}
+              <span class="result-pill ${item.passed ? "hit" : "miss"}">
+                ${
+                  item.answerable
+                    ? item.hit
+                      ? "命中"
+                      : "未命中"
+                    : item.decision === "refuse"
+                      ? "正确拒答"
+                      : "未拒答"
+                }
               </span>
             </div>
           `,

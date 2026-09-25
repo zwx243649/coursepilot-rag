@@ -15,6 +15,19 @@ except ImportError:  # pragma: no cover - exercised only in minimal installs
     END = START = StateGraph = None
 
 
+def effective_threshold(provider: str, configured: float) -> float:
+    """Hash vectors score lower overall, so they get their own gate."""
+    return 0.05 if provider == "hash" else configured
+
+
+def decide(hits: list[VectorHit], provider: str, configured: float) -> str:
+    """Single source of truth for the generate/refuse decision."""
+    top_score = hits[0].score if hits else 0.0
+    if hits and top_score >= effective_threshold(provider, configured):
+        return "generate"
+    return "refuse"
+
+
 class AgentState(TypedDict, total=False):
     course_id: str
     question: str
@@ -100,16 +113,18 @@ class CoursePilotAgent:
 
     def _grade(self, state: AgentState) -> AgentState:
         hits = state.get("hits", [])
-        top_score = hits[0]["score"] if hits else 0.0
-        threshold = (
-            0.05
-            if self.embedder.provider == "hash"
-            else self.settings.min_retrieval_score
-        )
-        state["decision"] = (
-            "generate"
-            if hits and top_score >= threshold
-            else "refuse"
+        typed_hits = [
+            VectorHit(
+                chunk_id=item["chunk_id"],
+                score=float(item["score"]),
+                payload=item["payload"],
+            )
+            for item in hits
+        ]
+        state["decision"] = decide(
+            typed_hits,
+            self.embedder.provider,
+            self.settings.min_retrieval_score,
         )
         state["trace_nodes"] = [*state.get("trace_nodes", []), "grade"]
         return state
