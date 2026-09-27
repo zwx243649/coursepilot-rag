@@ -19,5 +19,9 @@ def execute_evaluation(
 ) -> EvaluationResponse:
     if db.get(Course, payload.course_id) is None:
         raise HTTPException(status_code=404, detail="Course not found")
-    return run_evaluation(payload.course_id, payload.cases, payload.top_k)
-
+    return run_evaluation(
+        payload.course_id,
+        payload.cases,
+        payload.top_k,
+        offline=payload.offline,
+    )

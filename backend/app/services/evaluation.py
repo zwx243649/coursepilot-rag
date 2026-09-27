@@ -56,6 +56,7 @@ def run_evaluation(
     course_id: str,
     cases: list[EvaluationCase],
     top_k: int,
+    offline: bool = False,
 ) -> EvaluationResponse:
     settings = get_settings()
     retrieval = get_retrieval_service()
@@ -68,7 +69,8 @@ def run_evaluation(
             course_id,
             case.question,
             top_k=top_k,
-            rewrite=True,
+            rewrite=not offline,
+            rerank=False if offline else None,
         )
         latency_ms = int((time.perf_counter() - started) * 1000)
 

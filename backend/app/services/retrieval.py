@@ -37,6 +37,7 @@ class RetrievalService:
         query: str,
         top_k: int | None = None,
         rewrite: bool = False,
+        rerank: bool | None = None,
     ) -> tuple[list[VectorHit], dict]:
         limit = top_k or self.settings.retrieval_top_k
         candidates = max(limit, self.settings.retrieval_candidates)
@@ -54,7 +55,8 @@ class RetrievalService:
         )
 
         reranked = False
-        if hits and self.reranker.provider != "none":
+        use_rerank = self.reranker.provider != "none" if rerank is None else rerank
+        if hits and use_rerank and self.reranker.provider != "none":
             hits = self.reranker.rerank(query, hits, limit)
             reranked = True
         else:

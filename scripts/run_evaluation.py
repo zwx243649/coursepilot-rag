@@ -150,6 +150,7 @@ def run_suite(
     suite: dict,
     top_k_values: list[int],
     with_refusal: bool,
+    offline: bool = False,
 ) -> int:
     course_id = resolve_course(client, suite.get("course_id"), suite.get("course_name", ""))
     cases = suite["cases"]
@@ -169,7 +170,12 @@ def run_suite(
     for top_k in top_k_values:
         response = client.post(
             "/api/evaluations/run",
-            json={"course_id": course_id, "cases": cases, "top_k": top_k},
+            json={
+                "course_id": course_id,
+                "cases": cases,
+                "top_k": top_k,
+                "offline": offline,
+            },
         )
         if response.status_code != 200:
             print("\n!! 评测失败：HTTP %s %s" % (response.status_code, response.text[:300]))
@@ -227,6 +233,11 @@ def main() -> int:
     parser.add_argument("--suite", action="append", default=None, help="suite name, repeatable")
     parser.add_argument("--top-k", type=int, nargs="+", default=[3, 5])
     parser.add_argument("--refusal", action="store_true", help="also run end-to-end refusal checks")
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="skip query rewrite and rerank; uses cached query vectors only",
+    )
     args = parser.parse_args()
 
     suites = load_suites(args.cases)
@@ -239,7 +250,10 @@ def main() -> int:
     exit_code = 0
     with httpx.Client(base_url=args.base_url, timeout=300.0) as client:
         for suite in suites:
-            exit_code = max(exit_code, run_suite(client, suite, args.top_k, args.refusal))
+            exit_code = max(
+                exit_code,
+                run_suite(client, suite, args.top_k, args.refusal, args.offline),
+            )
     return exit_code
 
 

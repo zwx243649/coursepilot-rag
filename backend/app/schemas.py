@@ -127,6 +127,7 @@ class EvaluationRequest(BaseModel):
     course_id: str
     cases: list[EvaluationCase] = Field(min_length=1, max_length=100)
     top_k: int = Field(default=5, ge=1, le=20)
+    offline: bool = False
 
 
 class EvaluationCaseResult(BaseModel):
