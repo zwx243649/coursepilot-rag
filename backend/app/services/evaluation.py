@@ -6,8 +6,8 @@ import time
 from app.config import get_settings
 from app.schemas import EvaluationCase, EvaluationCaseResult, EvaluationResponse
 from app.services.agent import decide
-from app.services.embeddings import get_embedder
-from app.services.vector_store import VectorHit, get_vector_store
+from app.services.retrieval import get_retrieval_service
+from app.services.vector_store import VectorHit
 
 
 def _hit_key(hit: VectorHit) -> tuple[str, int] | None:
@@ -58,19 +58,17 @@ def run_evaluation(
     top_k: int,
 ) -> EvaluationResponse:
     settings = get_settings()
-    embedder = get_embedder()
-    vector_store = get_vector_store()
-    provider = embedder.provider
+    retrieval = get_retrieval_service()
+    provider = retrieval.embedder.provider
 
     results: list[EvaluationCaseResult] = []
     for case in cases:
         started = time.perf_counter()
-        vector = embedder.embed_query(case.question)
-        hits = vector_store.search(
-            course_id=course_id,
-            vector=vector,
-            limit=top_k,
-            query=case.question,
+        hits, _meta = retrieval.retrieve(
+            course_id,
+            case.question,
+            top_k=top_k,
+            rewrite=True,
         )
         latency_ms = int((time.perf_counter() - started) * 1000)
 

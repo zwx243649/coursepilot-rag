@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 from app.config import get_settings
 from app.services.embeddings import get_embedder
 from app.services.llm import get_llm
+from app.services.retrieval import get_retrieval_service
 from app.services.vector_store import VectorHit, get_vector_store
 
 try:
@@ -21,9 +22,13 @@ def effective_threshold(provider: str, configured: float) -> float:
 
 
 def decide(hits: list[VectorHit], provider: str, configured: float) -> str:
-    """Single source of truth for the generate/refuse decision."""
-    top_score = hits[0].score if hits else 0.0
-    if hits and top_score >= effective_threshold(provider, configured):
+    """Single source of truth for the generate/refuse decision.
+
+    Uses the best retrieval score among the returned hits rather than the head of
+    the list, so reranking can reorder candidates without moving the gate.
+    """
+    best_score = max((hit.score for hit in hits), default=0.0)
+    if hits and best_score >= effective_threshold(provider, configured):
         return "generate"
     return "refuse"
 
@@ -32,7 +37,9 @@ class AgentState(TypedDict, total=False):
     course_id: str
     question: str
     search_query: str
+    rewrite_applied: bool
     hits: list[dict[str, Any]]
+    retrieval_meta: dict[str, Any]
     answer: str
     decision: str
     trace_nodes: list[str]
@@ -50,6 +57,7 @@ class CoursePilotAgent:
         self.embedder = get_embedder()
         self.vector_store = get_vector_store()
         self.llm = get_llm()
+        self.retrieval = get_retrieval_service()
         self.graph = self._build_graph()
 
     def _build_graph(self):
@@ -58,13 +66,15 @@ class CoursePilotAgent:
 
         workflow = StateGraph(AgentState)
         workflow.add_node("analyze", self._analyze)
+        workflow.add_node("rewrite", self._rewrite)
         workflow.add_node("retrieve", self._retrieve)
         workflow.add_node("grade", self._grade)
         workflow.add_node("generate", self._generate)
         workflow.add_node("refuse", self._refuse)
 
         workflow.add_edge(START, "analyze")
-        workflow.add_edge("analyze", "retrieve")
+        workflow.add_edge("analyze", "rewrite")
+        workflow.add_edge("rewrite", "retrieve")
         workflow.add_edge("retrieve", "grade")
         workflow.add_conditional_edges(
             "grade",
@@ -88,6 +98,7 @@ class CoursePilotAgent:
             return self.graph.invoke(initial)
 
         state = self._analyze(initial)
+        state = self._rewrite(state)
         state = self._retrieve(state)
         state = self._grade(state)
         if state["decision"] == "generate":
@@ -99,15 +110,20 @@ class CoursePilotAgent:
         state["trace_nodes"] = [*state.get("trace_nodes", []), "analyze"]
         return state
 
+    def _rewrite(self, state: AgentState) -> AgentState:
+        query, applied = self.retrieval.rewrite_query(state["search_query"])
+        state["search_query"] = query
+        state["rewrite_applied"] = applied
+        state["trace_nodes"] = [*state.get("trace_nodes", []), "rewrite"]
+        return state
+
     def _retrieve(self, state: AgentState) -> AgentState:
-        query_vector = self.embedder.embed_query(state["search_query"])
-        hits = self.vector_store.search(
-            course_id=state["course_id"],
-            vector=query_vector,
-            limit=self.settings.retrieval_top_k,
-            query=state["search_query"],
+        hits, meta = self.retrieval.retrieve(
+            state["course_id"],
+            state["search_query"],
         )
         state["hits"] = [hit.as_dict() for hit in hits]
+        state["retrieval_meta"] = meta
         state["trace_nodes"] = [*state.get("trace_nodes", []), "retrieve"]
         return state
 

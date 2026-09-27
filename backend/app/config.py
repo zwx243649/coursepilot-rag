@@ -41,14 +41,31 @@ class Settings:
     embedding_batch_size: int
     embedding_send_dimensions: bool
 
+    embedding_cache_enabled: bool
+    embedding_cache_path: Path
+    embedding_cache_max_entries: int
+    embedding_max_retries: int
+    embedding_timeout_seconds: float
+
     llm_provider: str
     llm_base_url: str
     llm_api_key: str | None
     llm_model: str
 
+    rerank_enabled: bool
+    rerank_provider: str
+    rerank_base_url: str
+    rerank_api_key: str | None
+    rerank_model: str
+    rerank_timeout_seconds: float
+    rerank_max_retries: int
+    query_rewrite_enabled: bool
+
     chunk_size: int
     chunk_overlap: int
     retrieval_top_k: int
+    retrieval_candidates: int
+    hybrid_retrieval_enabled: bool
     min_retrieval_score: float
     max_upload_mb: int
     cors_origins: tuple[str, ...]
@@ -102,13 +119,37 @@ def get_settings() -> Settings:
         embedding_dim=int(os.getenv("EMBEDDING_DIM", "384")),
         embedding_batch_size=max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", "64"))),
         embedding_send_dimensions=_env_bool("EMBEDDING_SEND_DIMENSIONS", False),
+        embedding_cache_enabled=_env_bool("EMBEDDING_CACHE_ENABLED", True),
+        embedding_cache_path=Path(
+            os.getenv("EMBEDDING_CACHE_PATH", str(data_dir / "embedding_cache.json"))
+        ).resolve(),
+        embedding_cache_max_entries=max(
+            0, int(os.getenv("EMBEDDING_CACHE_MAX_ENTRIES", "2000"))
+        ),
+        embedding_max_retries=max(1, int(os.getenv("EMBEDDING_MAX_RETRIES", "3"))),
+        embedding_timeout_seconds=float(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "30")),
         llm_provider=os.getenv("LLM_PROVIDER", "demo").strip().lower(),
         llm_base_url=os.getenv("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
         llm_api_key=os.getenv("LLM_API_KEY") or None,
         llm_model=os.getenv("LLM_MODEL", "gpt-4.1-mini"),
+        rerank_enabled=_env_bool("RERANK_ENABLED", True),
+        rerank_provider=os.getenv("RERANK_PROVIDER", "dashscope").strip().lower(),
+        rerank_base_url=os.getenv(
+            "RERANK_BASE_URL",
+            "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank",
+        ),
+        rerank_api_key=(
+            os.getenv("RERANK_API_KEY") or os.getenv("LLM_API_KEY") or None
+        ),
+        rerank_model=os.getenv("RERANK_MODEL", "gte-rerank-v2"),
+        rerank_timeout_seconds=float(os.getenv("RERANK_TIMEOUT_SECONDS", "25")),
+        rerank_max_retries=max(1, int(os.getenv("RERANK_MAX_RETRIES", "2"))),
+        query_rewrite_enabled=_env_bool("QUERY_REWRITE_ENABLED", True),
         chunk_size=int(os.getenv("CHUNK_SIZE", "700")),
         chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "100")),
         retrieval_top_k=int(os.getenv("RETRIEVAL_TOP_K", "6")),
+        retrieval_candidates=max(1, int(os.getenv("RETRIEVAL_CANDIDATES", "20"))),
+        hybrid_retrieval_enabled=_env_bool("HYBRID_RETRIEVAL_ENABLED", True),
         min_retrieval_score=float(os.getenv("MIN_RETRIEVAL_SCORE", "0.45")),
         max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "25")),
         cors_origins=origins,

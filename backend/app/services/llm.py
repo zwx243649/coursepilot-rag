@@ -8,10 +8,22 @@ import httpx
 
 from app.config import get_settings
 from app.services.embeddings import _hash_tokens
+from app.services.http_client import post_json
 from app.services.vector_store import VectorHit
 
 
 _SENTENCE_RE = re.compile(r"(?<=[。！？.!?])\s*|\n+")
+
+_CHAT_TIMEOUT_SECONDS = 60.0
+_CHAT_MAX_RETRIES = 2
+_REWRITE_TIMEOUT_SECONDS = 30.0
+
+_REWRITE_PROMPT = (
+    "You rewrite a user question into a single retrieval query. Keep the original "
+    "intent, add useful synonyms, and when the source material is likely English "
+    "also include the key English terms. Output only the query text: no "
+    "explanation, no bullet points, no quotes."
+)
 
 
 def _contains_cjk(text: str) -> bool:
@@ -122,16 +134,48 @@ class LLMService:
         }
         headers = {"Authorization": f"Bearer {self.settings.llm_api_key}"}
         try:
-            response = httpx.post(
+            response = post_json(
                 f"{self.settings.llm_base_url}/chat/completions",
                 headers=headers,
-                json=payload,
-                timeout=90.0,
+                payload=payload,
+                timeout=_CHAT_TIMEOUT_SECONDS,
+                retries=_CHAT_MAX_RETRIES,
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
             raise RuntimeError(f"Chat completion request failed: {exc}") from exc
         return response.json()["choices"][0]["message"]["content"].strip()
+
+    def rewrite_query(self, question: str) -> str | None:
+        """Rewrite a question into a retrieval query; None means "keep the original".
+
+        Best-effort by design: an offline provider or a failed call must never
+        break retrieval, so callers fall back to the raw question.
+        """
+        if self.provider != "openai":
+            return None
+        payload = {
+            "model": self.settings.llm_model,
+            "temperature": 0.0,
+            "messages": [
+                {"role": "system", "content": _REWRITE_PROMPT},
+                {"role": "user", "content": question},
+            ],
+        }
+        try:
+            response = post_json(
+                f"{self.settings.llm_base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.settings.llm_api_key}"},
+                payload=payload,
+                timeout=_REWRITE_TIMEOUT_SECONDS,
+                retries=_CHAT_MAX_RETRIES,
+            )
+            response.raise_for_status()
+            text = response.json()["choices"][0]["message"]["content"].strip()
+        except (httpx.HTTPError, KeyError, IndexError, ValueError):
+            return None
+        text = text.strip().strip('"').strip()
+        return text[:400] or None
 
     def health(self) -> dict[str, str | bool]:
         configured = self.provider == "openai"

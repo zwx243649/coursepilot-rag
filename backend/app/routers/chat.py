@@ -68,11 +68,16 @@ def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
         )
         for index, item in enumerate(hits[:6], start=1)
     ]
+    retrieval_meta = state.get("retrieval_meta", {}) or {}
     trace = ChatTrace(
         nodes=state.get("trace_nodes", []),
         decision=state.get("decision", "refuse"),
         retrieval_count=len(hits),
         latency_ms=latency_ms,
+        rewritten_query=(
+            state.get("search_query") if state.get("rewrite_applied") else None
+        ),
+        reranked=bool(retrieval_meta.get("reranked")),
     )
     assistant_message = Message(
         conversation_id=conversation.id,
@@ -111,4 +116,3 @@ def list_messages(
             .order_by(Message.created_at.asc())
         )
     )
-

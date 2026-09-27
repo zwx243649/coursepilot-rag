@@ -40,6 +40,7 @@ const STATUS_LABELS = {
 
 const NODE_LABELS = {
   analyze: "问题分析",
+  rewrite: "查询改写",
   retrieve: "向量检索",
   grade: "相关性判断",
   generate: "生成回答",

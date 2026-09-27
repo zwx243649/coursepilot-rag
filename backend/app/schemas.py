@@ -88,6 +88,8 @@ class ChatTrace(BaseModel):
     decision: str
     retrieval_count: int
     latency_ms: int
+    rewritten_query: str | None = None
+    reranked: bool = False
 
 
 class ChatResponse(BaseModel):

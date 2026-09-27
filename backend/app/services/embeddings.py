@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 from functools import lru_cache
@@ -8,10 +9,41 @@ from functools import lru_cache
 import httpx
 
 from app.config import get_settings
+from app.services.http_client import post_json
 
 
 _WORD_RE = re.compile(r"[a-z0-9_]+")
 _CJK_RE = re.compile(r"[\u3400-\u9fff]+")
+
+
+def _cache_key(model: str, text: str) -> str:
+    return hashlib.sha256(f"{model}\x00{text}".encode("utf-8")).hexdigest()[:40]
+
+
+def _load_cache(settings) -> dict[str, list[float]]:
+    path = settings.embedding_cache_path
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_cache(settings, cache: dict[str, list[float]]) -> None:
+    """Best-effort persistence: a missing or read-only cache must not break a request."""
+    path = settings.embedding_cache_path
+    limit = settings.embedding_cache_max_entries
+    if limit > 0 and len(cache) > limit:
+        cache = {key: cache[key] for key in list(cache.keys())[-limit:]}
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(cache), encoding="utf-8")
+        temporary.replace(path)
+    except OSError:
+        pass
 
 
 def _hash_tokens(text: str) -> list[tuple[str, float]]:
@@ -60,44 +92,41 @@ class EmbeddingService:
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        if self.provider != "hash":
-            return self._openai_compatible_embeddings(texts)
-        return [hash_embedding(text, self.settings.embedding_dim) for text in texts]
+        if self.provider == "hash":
+            return [hash_embedding(text, self.settings.embedding_dim) for text in texts]
+        return self._remote_embeddings(texts)
 
     def embed_query(self, text: str) -> list[float]:
         return self.embed_documents([text])[0]
 
-    def _openai_compatible_embeddings(self, texts: list[str]) -> list[list[float]]:
-        headers = {"Authorization": f"Bearer {self.settings.embedding_api_key}"}
-        vectors: list[list[float]] = []
-        batch_size = self.settings.embedding_batch_size
-        for start in range(0, len(texts), batch_size):
-            batch = texts[start : start + batch_size]
-            payload: dict[str, object] = {
-                "model": self.settings.embedding_model,
-                "input": batch,
-                "encoding_format": "float",
-            }
-            if self.settings.embedding_send_dimensions:
-                payload["dimensions"] = self.settings.embedding_dim
-            try:
-                response = httpx.post(
-                    f"{self.settings.embedding_base_url}/embeddings",
-                    headers=headers,
-                    json=payload,
-                    timeout=120.0,
-                )
-                response.raise_for_status()
-            except httpx.HTTPError as exc:
-                raise RuntimeError(f"Embedding request failed: {exc}") from exc
+    def _remote_embeddings(self, texts: list[str]) -> list[list[float]]:
+        cache = (
+            _load_cache(self.settings) if self.settings.embedding_cache_enabled else {}
+        )
+        vectors: list[list[float] | None] = [None] * len(texts)
+        pending: list[tuple[int, str]] = []
 
-            data = sorted(response.json()["data"], key=lambda item: item["index"])
-            batch_vectors = [item["embedding"] for item in data]
-            if len(batch_vectors) != len(batch):
-                raise RuntimeError("Embedding response count does not match input count")
-            vectors.extend(batch_vectors)
+        for index, text in enumerate(texts):
+            cached = cache.get(_cache_key(self.settings.embedding_model, text))
+            if cached:
+                vectors[index] = cached
+            else:
+                pending.append((index, text))
 
-        actual_dimension = len(vectors[0]) if vectors else 0
+        for start in range(0, len(pending), self.settings.embedding_batch_size):
+            batch = pending[start : start + self.settings.embedding_batch_size]
+            batch_vectors = self._request_embeddings([text for _, text in batch])
+            for (index, text), vector in zip(batch, batch_vectors, strict=True):
+                vectors[index] = vector
+                cache[_cache_key(self.settings.embedding_model, text)] = vector
+
+        if pending and self.settings.embedding_cache_enabled:
+            _save_cache(self.settings, cache)
+
+        if any(vector is None for vector in vectors):
+            raise RuntimeError("Embedding response did not cover every input")
+
+        actual_dimension = len(vectors[0] or [])
         if actual_dimension != self.settings.embedding_dim:
             raise RuntimeError(
                 "Embedding dimension mismatch: "
@@ -105,6 +134,32 @@ class EmbeddingService:
                 f"but EMBEDDING_DIM is {self.settings.embedding_dim}. "
                 "Update EMBEDDING_DIM and use a new QDRANT_COLLECTION."
             )
+        return [vector for vector in vectors if vector is not None]
+
+    def _request_embeddings(self, batch: list[str]) -> list[list[float]]:
+        payload: dict[str, object] = {
+            "model": self.settings.embedding_model,
+            "input": batch,
+            "encoding_format": "float",
+        }
+        if self.settings.embedding_send_dimensions:
+            payload["dimensions"] = self.settings.embedding_dim
+        try:
+            response = post_json(
+                f"{self.settings.embedding_base_url}/embeddings",
+                headers={"Authorization": f"Bearer {self.settings.embedding_api_key}"},
+                payload=payload,
+                timeout=self.settings.embedding_timeout_seconds,
+                retries=self.settings.embedding_max_retries,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise RuntimeError(f"Embedding request failed: {exc}") from exc
+
+        data = sorted(response.json()["data"], key=lambda item: item["index"])
+        vectors = [item["embedding"] for item in data]
+        if len(vectors) != len(batch):
+            raise RuntimeError("Embedding response count does not match input count")
         return vectors
 
 
