@@ -58,7 +58,9 @@ class RetrievalService:
         use_rerank = self.reranker.provider != "none" if rerank is None else rerank
         if hits and use_rerank and self.reranker.provider != "none":
             hits = self.reranker.rerank(query, hits, limit)
-            reranked = True
+            # rerank() falls back to the retrieval order on failure, so only
+            # report it as applied when the call actually succeeded.
+            reranked = self.reranker.last_error is None
         else:
             hits = hits[:limit]
 
