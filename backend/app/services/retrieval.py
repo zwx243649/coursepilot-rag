@@ -57,6 +57,9 @@ class RetrievalService:
         reranked = False
         use_rerank = self.reranker.provider != "none" if rerank is None else rerank
         if hits and use_rerank and self.reranker.provider != "none":
+            # The rewritten query already carries both the original wording and
+            # the added keywords, so a single call serves Chinese and English
+            # material alike (see llm.rewrite_query).
             hits = self.reranker.rerank(query, hits, limit)
             # rerank() falls back to the retrieval order on failure, so only
             # report it as applied when the call actually succeeded.

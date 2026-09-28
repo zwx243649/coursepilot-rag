@@ -175,7 +175,16 @@ class LLMService:
         except (httpx.HTTPError, KeyError, IndexError, ValueError):
             return None
         text = text.strip().strip('"').strip()
-        return text[:400] or None
+        if not text:
+            return None
+        text = text[:400]
+        # Keep the user's own wording in the query: the added keywords help
+        # English material, the original wording helps Chinese material, and one
+        # bilingual query serves both instead of forcing a single language.
+        original = question.strip()
+        if original and original not in text:
+            return f"{original} {text}"[:600]
+        return text
 
     def health(self) -> dict[str, str | bool]:
         configured = self.provider == "openai"

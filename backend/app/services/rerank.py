@@ -5,7 +5,7 @@ from functools import lru_cache
 
 from app.config import get_settings
 from app.services.http_client import post_json
-from app.services.vector_store import VectorHit
+from app.services.vector_store import VectorHit, _rrf_fuse
 
 
 logger = logging.getLogger(__name__)
@@ -72,14 +72,70 @@ class RerankService:
         return payload, extract_flat
 
     def rerank(self, query: str, hits: list[VectorHit], top_n: int) -> list[VectorHit]:
-        """Return at most `top_n` hits ordered by rerank score.
+        return self.rerank_multi([query], hits, top_n)
 
-        Failures fall back to the retrieval order: reranking is an optimisation,
-        not a hard dependency, so a provider outage must not break answering.
+    def rerank_multi(
+        self,
+        queries: list[str],
+        hits: list[VectorHit],
+        top_n: int,
+    ) -> list[VectorHit]:
+        """Rerank with one or more queries and fuse their rankings.
+
+        Query rewriting makes the retrieval query more English while the source
+        material may be Chinese (or the other way round), so neither query alone
+        is right for every document. Each query scores the same candidate set and
+        the rankings are fused with RRF, which lets a document surface when either
+        query considers it relevant.
         """
         if self.provider == "none" or len(hits) <= 1:
             return hits[:top_n]
 
+        per_query: list[dict[int, float]] = []
+        for query in queries:
+            scores = self._score(query, hits, top_n)
+            per_query.append(dict(scores) if scores is not None else {})
+
+        if all(not scores for scores in per_query):
+            return hits[:top_n]
+
+        # Fuse the per-query rankings with reciprocal rank fusion: a candidate
+        # that either query ranks highly comes up, and no single query language
+        # is forced onto documents written in the other language.
+        rankings = [
+            [
+                index
+                for index, _ in sorted(scores.items(), key=lambda row: row[1], reverse=True)
+            ]
+            for scores in per_query
+            if scores
+        ]
+        order = _rrf_fuse(rankings)
+
+        best: dict[int, float] = {}
+        for index in order:
+            scores = [
+                per_query[position][index]
+                for position in range(len(per_query))
+                if index in per_query[position]
+            ]
+            if scores:
+                best[index] = max(scores)
+        for index, score in best.items():
+            hits[index].rerank_score = score
+        return [hits[index] for index in order][:top_n]
+
+    def _score(
+        self,
+        query: str,
+        hits: list[VectorHit],
+        top_n: int,
+    ) -> list[tuple[int, float]] | None:
+        """Score every candidate for one query; None means the call failed.
+
+        Reranking is an optimisation, not a hard dependency: a provider outage
+        must not break answering, so callers fall back to the retrieval order.
+        """
         documents = [str(hit.payload.get("content", "")) for hit in hits]
         payload, extract = self._request_spec(query, documents, min(top_n, len(hits)))
         try:
@@ -98,23 +154,14 @@ class RerankService:
         except Exception:
             logger.warning("rerank request failed (%s), falling back to retrieval order", self.settings.rerank_model, exc_info=True)
             self.last_error = "rerank request failed"
-            return hits[:top_n]
+            return None
 
         self.last_error = None
-        ordered: list[VectorHit] = []
-        seen: set[int] = set()
-        for index, score in sorted(results, key=lambda row: row[1], reverse=True):
-            if index in seen or not 0 <= index < len(hits):
-                continue
-            seen.add(index)
-            hit = hits[index]
-            hit.rerank_score = score
-            ordered.append(hit)
-
-        for index, hit in enumerate(hits):
-            if index not in seen:
-                ordered.append(hit)
-        return ordered[:top_n]
+        return [
+            (index, score)
+            for index, score in results
+            if 0 <= index < len(hits)
+        ]
 
 
 @lru_cache
