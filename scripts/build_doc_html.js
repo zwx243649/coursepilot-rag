@@ -14,9 +14,18 @@ const path = require('path');
 const { marked } = require('marked');
 
 const ROOT = path.resolve(__dirname, '..');
-const SRC = path.join(ROOT, 'docs', '项目说明.md');
 const OUT_DIR = path.join(ROOT, 'share');
-const OUT_HTML = path.join(OUT_DIR, 'coursepilot-doc.html');
+
+// Usage: node scripts/build_doc_html.js [source.md] [output.html]
+// Both default to the project overview document.
+const sourceArg = process.argv[2];
+const outputArg = process.argv[3];
+const SRC = sourceArg
+  ? path.resolve(ROOT, sourceArg)
+  : path.join(ROOT, 'docs', '项目说明.md');
+const OUT_HTML = outputArg
+  ? path.resolve(ROOT, outputArg)
+  : path.join(OUT_DIR, 'coursepilot-doc.html');
 
 const css = `
   :root { color-scheme: light; }
@@ -47,11 +56,12 @@ const css = `
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const markdown = fs.readFileSync(SRC, 'utf8');
+const title = (markdown.match(/^#\s+(.+)$/m) || [, path.basename(SRC)])[1];
 const html = `<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>CoursePilot 项目说明</title>
+<title>${title}</title>
 <style>${css}</style>
 </head>
 <body><article>${marked.parse(markdown)}</article></body>
