@@ -136,12 +136,25 @@ def get_settings() -> Settings:
         rerank_provider=os.getenv("RERANK_PROVIDER", "dashscope").strip().lower(),
         rerank_base_url=os.getenv(
             "RERANK_BASE_URL",
-            "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank",
+            {
+                "siliconflow": "https://api.siliconflow.cn/v1/rerank",
+            }.get(
+                os.getenv("RERANK_PROVIDER", "dashscope").strip().lower(),
+                "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank",
+            ),
         ),
         rerank_api_key=(
             os.getenv("RERANK_API_KEY") or os.getenv("LLM_API_KEY") or None
         ),
-        rerank_model=os.getenv("RERANK_MODEL", "gte-rerank-v2"),
+        rerank_model=os.getenv(
+            "RERANK_MODEL",
+            {
+                "siliconflow": "BAAI/bge-reranker-v2-m3",
+            }.get(
+                os.getenv("RERANK_PROVIDER", "dashscope").strip().lower(),
+                "gte-rerank-v2",
+            ),
+        ),
         rerank_timeout_seconds=float(os.getenv("RERANK_TIMEOUT_SECONDS", "25")),
         rerank_max_retries=max(1, int(os.getenv("RERANK_MAX_RETRIES", "2"))),
         query_rewrite_enabled=_env_bool("QUERY_REWRITE_ENABLED", True),
